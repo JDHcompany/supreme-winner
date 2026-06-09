@@ -85,12 +85,12 @@ def send_photo_only(token, chat_id, photo_url):
 def send_message_with_buttons(token, chat_id, raw_urls, update_time):
     """Отправляет текстовое сообщение с кнопками (БЕЗ Markdown)."""
     
-    # Простой текст без Markdown разметки
+    # Исправленный текст (были /n вместо \n)
     message_text = (
         f"🆕 Обновление конфигураций\n"
         f"🕒 Время обновления: {update_time}\n\n"
-        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot/n/n"
-        f"⏳ссылки работают 12 часов,а потом обновляются🔄/n/n"
+        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot\n\n"
+        f"⏳ Ссылки работают 12 часов, а потом обновляются 🔄\n\n"
         f"👇 Нажми на кнопку, чтобы скопировать конфиг:"
     )
 
@@ -106,7 +106,6 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
         "chat_id": chat_id,
         "text": message_text,
         "reply_markup": {"inline_keyboard": inline_keyboard}
-        # Убрал parse_mode - теперь точно нет проблем с Markdown
     }
 
     try:
