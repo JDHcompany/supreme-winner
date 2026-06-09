@@ -17,10 +17,7 @@ ENCODED_URLS = [
 ]
 
 DATA_DIR = "data"
-
-# Название файла с картинкой в репозитории (положите её в корень или в data/)
-PHOTO_FILENAME = "image.jpg"  # Замените на имя вашей картинки
-# Если картинка в папке data, то напишите: PHOTO_FILENAME = "data/image.jpg"
+PHOTO_FILENAME = "image.jpg"  # Ваша картинка в корне репозитория
 
 
 def decode_url(encoded_str):
@@ -34,14 +31,14 @@ def decode_url(encoded_str):
 
 
 def generate_random_filename():
-    """Генерирует случайное имя файла (config_[12 случайных символов].txt)."""
+    """Генерирует случайное имя файла."""
     random_str = ''.join(random.choices(
         string.ascii_lowercase + string.digits, k=12))
     return f"config_{random_str}.txt"
 
 
 def clean_old_files():
-    """Удаляет старые конфигурационные файлы из папки данных."""
+    """Удаляет старые конфигурационные файлы."""
     if os.path.exists(DATA_DIR):
         for file in os.listdir(DATA_DIR):
             file_path = os.path.join(DATA_DIR, file)
@@ -65,78 +62,60 @@ def download_content(url):
         return None
 
 
-def send_telegram_post_with_photo(token, chat_id, raw_urls, update_time, github_repository):
-    """Отправляет фото из репозитория, а под ним сообщение с кнопками."""
+def send_telegram_message_with_photo(token, chat_id, raw_urls, update_time, github_repository):
+    """Отправляет ОДНО сообщение с фото, текстом, временем и кнопками."""
     
-    # Формируем прямую ссылку на картинку в репозитории
+    # Прямая ссылка на картинку в репозитории
     photo_url = f"https://raw.githubusercontent.com/{github_repository}/main/{PHOTO_FILENAME}"
     
-    # Сначала отправляем фото
-    photo_api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
-    photo_payload = {
-        "chat_id": chat_id,
-        "photo": photo_url,
-        "caption": "🔄 **Конфигурации обновлены!**",
-        "parse_mode": "Markdown"
-    }
-    
-    try:
-        response = requests.post(photo_api_url, json=photo_payload, timeout=20)
-        response.raise_for_status()
-        print("Фото успешно отправлено!")
-    except Exception as e:
-        print(f"Ошибка при отправке фото: {e}")
-        print(f"Проверьте, что файл {PHOTO_FILENAME} существует в репозитории")
-        # Продолжаем выполнение даже если фото не отправилось
-
-    # Формируем текст сообщения
-    message_text = (
+    # Текст сообщения (будет под фото)
+    caption_text = (
         f"🆕 **Обновление конфигураций**\n"
         f"🕒 **Время обновления:** `{update_time}`\n\n"
         f"👇 **Нажми на кнопку, чтобы скопировать конфиг:**\n\n"
         f"🗃️ **Больше новых конфигов в моем боте** 🎁 - @freevpnconf_bot"
     )
-
-    # Формируем inline-клавиатуру: 6 кнопок в один столбик
+    
+    # Формируем inline-клавиатуру
     inline_keyboard = []
     for idx, file_url in enumerate(raw_urls, 1):
         inline_keyboard.append([{
             "text": f"📋 Скопировать Конфиг #{idx}",
             "url": file_url
         }])
-
-    # Отправляем текстовое сообщение с кнопками
-    message_api_url = f"https://api.telegram.org/bot{token}/sendMessage"
-    message_payload = {
+    
+    # Отправляем ОДНО сообщение с фото и кнопками
+    api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    payload = {
         "chat_id": chat_id,
-        "text": message_text,
+        "photo": photo_url,
+        "caption": caption_text,
         "reply_markup": {
             "inline_keyboard": inline_keyboard
         },
         "parse_mode": "Markdown"
     }
-
+    
     try:
-        response = requests.post(message_api_url, json=message_payload, timeout=20)
+        response = requests.post(api_url, json=payload, timeout=20)
         response.raise_for_status()
-        print("Пост успешно опубликован в Telegram!")
+        print("Сообщение с фото и кнопками успешно отправлено в Telegram!")
     except Exception as e:
-        print(f"Ошибка при публикации поста в Telegram: {e}")
+        print(f"Ошибка при отправке: {e}")
         sys.exit(1)
 
 
 def main():
-    # Безопасное считывание секретов из окружения (GitHub Secrets)
     telegram_token = os.environ.get("TELEGRAM_TOKEN")
     telegram_to_id = os.environ.get("TELEGRAM_TO_ID")
     github_repository = os.environ.get("GITHUB_REPOSITORY")
 
     if not telegram_token or not telegram_to_id:
-        print("Ошибка: Переменные окружения TELEGRAM_TOKEN или TELEGRAM_TO_ID не найдены.")
+        print("Ошибка: TELEGRAM_TOKEN или TELEGRAM_TO_ID не найдены.")
         sys.exit(1)
 
     if not github_repository:
-        print("Ошибка: Переменная GITHUB_REPOSITORY пуста.")
+        print("Ошибка: GITHUB_REPOSITORY пуста.")
         sys.exit(1)
 
     print("Очистка старых файлов...")
@@ -157,7 +136,7 @@ def main():
                 f.write(content)
 
             new_filenames.append(new_name)
-            print(f"Сохранен новый файл #{idx}: {new_name}")
+            print(f"Сохранен файл #{idx}: {new_name}")
         else:
             print(f"Не удалось обновить файл #{idx}, пропускаем.")
 
@@ -165,18 +144,18 @@ def main():
         print("Критическая ошибка: Ни один файл не был обновлен.")
         sys.exit(1)
 
-    # Генерация прямых raw-ссылок на созданные файлы
+    # Генерация прямых raw-ссылок
     raw_urls = []
     for file_name in new_filenames:
         raw_url = f"https://raw.githubusercontent.com/{github_repository}/main/{DATA_DIR}/{file_name}"
         raw_urls.append(raw_url)
 
-    # Получаем текущее время
+    # Текущее время
     update_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # Отправка фото + поста в Telegram
-    print("Публикация фото и поста...")
-    send_telegram_post_with_photo(telegram_token, telegram_to_id, raw_urls, update_time, github_repository)
+    # Отправка ОДНОГО сообщения
+    print("Отправка сообщения в Telegram...")
+    send_telegram_message_with_photo(telegram_token, telegram_to_id, raw_urls, update_time, github_repository)
 
 
 if __name__ == "__main__":
