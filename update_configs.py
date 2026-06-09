@@ -19,7 +19,7 @@ ENCODED_URLS = [
 DATA_DIR = "data"
 
 # НАЗВАНИЕ ВАШЕЙ КАРТИНКИ (положите её в корень репозитория)
-PHOTO_FILENAME = "image.jpg"  # <--- ЗДЕСЬ УКАЖИТЕ ИМЯ ФАЙЛА
+PHOTO_FILENAME = "image.jpg"
 
 
 def decode_url(encoded_str):
@@ -83,13 +83,14 @@ def send_photo_only(token, chat_id, photo_url):
 
 
 def send_message_with_buttons(token, chat_id, raw_urls, update_time):
-    """Отправляет текстовое сообщение с кнопками."""
+    """Отправляет текстовое сообщение с кнопками (БЕЗ Markdown)."""
     
+    # Простой текст без Markdown разметки
     message_text = (
-        f"🆕 **Обновление конфигураций**\n"
-        f"🕒 **Время обновления:** `{update_time}`\n\n"
-        f"👇 **Нажми на кнопку, чтобы скопировать конфиг:**\n\n"
-        f"🗃️ **Больше новых конфигов в моем боте** 🎁 - @freevpnconf_bot"
+        f"🆕 Обновление конфигураций\n"
+        f"🕒 Время обновления: {update_time}\n\n"
+        f"👇 Нажми на кнопку, чтобы скопировать конфиг:\n\n"
+        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot"
     )
 
     inline_keyboard = []
@@ -103,8 +104,8 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
     payload = {
         "chat_id": chat_id,
         "text": message_text,
-        "reply_markup": {"inline_keyboard": inline_keyboard},
-        "parse_mode": "Markdown"
+        "reply_markup": {"inline_keyboard": inline_keyboard}
+        # Убрал parse_mode - теперь точно нет проблем с Markdown
     }
 
     try:
@@ -114,6 +115,8 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
         return True
     except Exception as e:
         print(f"Ошибка при отправке сообщения: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"Ответ Telegram: {e.response.text}")
         return False
 
 
@@ -164,7 +167,7 @@ def main():
 
     update_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # Формируем ссылку на картинку в репозитории
+    # Формируем ссылку на картинку
     photo_url = f"https://raw.githubusercontent.com/{github_repository}/main/{PHOTO_FILENAME}"
     print(f"Ссылка на картинку: {photo_url}")
 
