@@ -4,6 +4,7 @@ import base64
 import random
 import string
 import requests
+from datetime import datetime
 
 # Исходные ссылки на конфигурации, закодированные в Base64
 ENCODED_URLS = [
@@ -16,6 +17,10 @@ ENCODED_URLS = [
 ]
 
 DATA_DIR = "data"
+
+# Название файла с картинкой в репозитории (положите её в корень или в data/)
+PHOTO_FILENAME = "image.jpg"  # Замените на имя вашей картинки
+# Если картинка в папке data, то напишите: PHOTO_FILENAME = "data/image.jpg"
 
 
 def decode_url(encoded_str):
@@ -60,9 +65,37 @@ def download_content(url):
         return None
 
 
-def send_telegram_post(token, chat_id, raw_urls):
-    """Отправляет пост с 6 кнопками-ссылками в Telegram-канал."""
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
+def send_telegram_post_with_photo(token, chat_id, raw_urls, update_time, github_repository):
+    """Отправляет фото из репозитория, а под ним сообщение с кнопками."""
+    
+    # Формируем прямую ссылку на картинку в репозитории
+    photo_url = f"https://raw.githubusercontent.com/{github_repository}/main/{PHOTO_FILENAME}"
+    
+    # Сначала отправляем фото
+    photo_api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    photo_payload = {
+        "chat_id": chat_id,
+        "photo": photo_url,
+        "caption": "🔄 **Конфигурации обновлены!**",
+        "parse_mode": "Markdown"
+    }
+    
+    try:
+        response = requests.post(photo_api_url, json=photo_payload, timeout=20)
+        response.raise_for_status()
+        print("Фото успешно отправлено!")
+    except Exception as e:
+        print(f"Ошибка при отправке фото: {e}")
+        print(f"Проверьте, что файл {PHOTO_FILENAME} существует в репозитории")
+        # Продолжаем выполнение даже если фото не отправилось
+
+    # Формируем текст сообщения
+    message_text = (
+        f"🆕 **Обновление конфигураций**\n"
+        f"🕒 **Время обновления:** `{update_time}`\n\n"
+        f"👇 **Нажми на кнопку, чтобы скопировать конфиг:**\n\n"
+        f"🗃️ **Больше новых конфигов в моем боте** 🎁 - @freevpnconf_bot"
+    )
 
     # Формируем inline-клавиатуру: 6 кнопок в один столбик
     inline_keyboard = []
@@ -72,16 +105,19 @@ def send_telegram_post(token, chat_id, raw_urls):
             "url": file_url
         }])
 
-    payload = {
+    # Отправляем текстовое сообщение с кнопками
+    message_api_url = f"https://api.telegram.org/bot{token}/sendMessage"
+    message_payload = {
         "chat_id": chat_id,
-        "text": "💩Обновленные конфигурации 👇",
+        "text": message_text,
         "reply_markup": {
             "inline_keyboard": inline_keyboard
-        }
+        },
+        "parse_mode": "Markdown"
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=20)
+        response = requests.post(message_api_url, json=message_payload, timeout=20)
         response.raise_for_status()
         print("Пост успешно опубликован в Telegram!")
     except Exception as e:
@@ -117,7 +153,6 @@ def main():
             new_name = generate_random_filename()
             file_path = os.path.join(DATA_DIR, new_name)
 
-            # Записываем контент в новый файл
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
@@ -130,15 +165,18 @@ def main():
         print("Критическая ошибка: Ни один файл не был обновлен.")
         sys.exit(1)
 
-    # Генерация прямых raw-ссылок на созданные файлы в вашем репозитории
+    # Генерация прямых raw-ссылок на созданные файлы
     raw_urls = []
     for file_name in new_filenames:
         raw_url = f"https://raw.githubusercontent.com/{github_repository}/main/{DATA_DIR}/{file_name}"
         raw_urls.append(raw_url)
 
-    # Отправка поста в Telegram
-    print("Публикация поста...")
-    send_telegram_post(telegram_token, telegram_to_id, raw_urls)
+    # Получаем текущее время
+    update_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # Отправка фото + поста в Telegram
+    print("Публикация фото и поста...")
+    send_telegram_post_with_photo(telegram_token, telegram_to_id, raw_urls, update_time, github_repository)
 
 
 if __name__ == "__main__":
