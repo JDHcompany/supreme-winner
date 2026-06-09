@@ -1,1 +1,52 @@
+name: Auto Update Configs
 
+on:
+  schedule:
+    # Запуск раз в 12 часов (в 00:00 и 12:00 по UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Позволяет запускать вручную из вкладки Actions на GitHub
+
+permissions:
+  contents: write # Дает право сценарию пушить изменения обратно в ваш репозиторий
+
+jobs:
+  update-and-post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run updater and notify Telegram
+        env:
+          # Секреты безопасно забираются из зашифрованной базы GitHub
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TO_ID: ${{ secrets.TELEGRAM_TO_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python update_configs.py
+
+      - name: Commit and Push new config files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add data/
+          
+          if git diff-index --quiet HEAD; then
+            echo "Конфигурации не изменились."
+          else
+            git commit -m "Auto-update configs: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
