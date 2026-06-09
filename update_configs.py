@@ -89,8 +89,9 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
     message_text = (
         f"🆕 Обновление конфигураций\n"
         f"🕒 Время обновления: {update_time}\n\n"
-        f"👇 Нажми на кнопку, чтобы скопировать конфиг:\n\n"
-        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot"
+        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot/n/n"
+        f"⏳ссылки работают 12 часов,а потом обновляются🔄/n/n"
+        f"👇 Нажми на кнопку, чтобы скопировать конфиг:"
     )
 
     inline_keyboard = []
