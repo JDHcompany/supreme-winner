@@ -17,7 +17,9 @@ ENCODED_URLS = [
 ]
 
 DATA_DIR = "data"
-PHOTO_FILENAME = "image.jpg"  # Ваша картинка в корне репозитория
+
+# НАЗВАНИЕ ВАШЕЙ КАРТИНКИ (положите её в корень репозитория)
+PHOTO_FILENAME = "image.jpg"  # <--- ЗДЕСЬ УКАЖИТЕ ИМЯ ФАЙЛА
 
 
 def decode_url(encoded_str):
@@ -58,51 +60,61 @@ def download_content(url):
         response.raise_for_status()
         return response.text
     except Exception as e:
-        print(f"Ошибка при скачивании файла с {url}: {e}")
+        print(f"Ошибка при скачивании: {e}")
         return None
 
 
-def send_telegram_message_with_photo(token, chat_id, raw_urls, update_time, github_repository):
-    """Отправляет ОДНО сообщение с фото, текстом, временем и кнопками."""
+def send_photo_only(token, chat_id, photo_url):
+    """Отправляет только картинку (без подписи)."""
+    api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    payload = {
+        "chat_id": chat_id,
+        "photo": photo_url
+    }
     
-    # Прямая ссылка на картинку в репозитории
-    photo_url = f"https://raw.githubusercontent.com/{github_repository}/main/{PHOTO_FILENAME}"
+    try:
+        response = requests.post(api_url, json=payload, timeout=20)
+        response.raise_for_status()
+        print("Картинка успешно отправлена!")
+        return True
+    except Exception as e:
+        print(f"Ошибка при отправке картинки: {e}")
+        return False
+
+
+def send_message_with_buttons(token, chat_id, raw_urls, update_time):
+    """Отправляет текстовое сообщение с кнопками."""
     
-    # Текст сообщения (будет под фото)
-    caption_text = (
+    message_text = (
         f"🆕 **Обновление конфигураций**\n"
         f"🕒 **Время обновления:** `{update_time}`\n\n"
         f"👇 **Нажми на кнопку, чтобы скопировать конфиг:**\n\n"
         f"🗃️ **Больше новых конфигов в моем боте** 🎁 - @freevpnconf_bot"
     )
-    
-    # Формируем inline-клавиатуру
+
     inline_keyboard = []
     for idx, file_url in enumerate(raw_urls, 1):
         inline_keyboard.append([{
             "text": f"📋 Скопировать Конфиг #{idx}",
             "url": file_url
         }])
-    
-    # Отправляем ОДНО сообщение с фото и кнопками
-    api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+
+    api_url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "photo": photo_url,
-        "caption": caption_text,
-        "reply_markup": {
-            "inline_keyboard": inline_keyboard
-        },
+        "text": message_text,
+        "reply_markup": {"inline_keyboard": inline_keyboard},
         "parse_mode": "Markdown"
     }
-    
+
     try:
         response = requests.post(api_url, json=payload, timeout=20)
         response.raise_for_status()
-        print("Сообщение с фото и кнопками успешно отправлено в Telegram!")
+        print("Сообщение с кнопками успешно отправлено!")
+        return True
     except Exception as e:
-        print(f"Ошибка при отправке: {e}")
-        sys.exit(1)
+        print(f"Ошибка при отправке сообщения: {e}")
+        return False
 
 
 def main():
@@ -144,18 +156,33 @@ def main():
         print("Критическая ошибка: Ни один файл не был обновлен.")
         sys.exit(1)
 
-    # Генерация прямых raw-ссылок
+    # Генерация ссылок на конфиги
     raw_urls = []
     for file_name in new_filenames:
         raw_url = f"https://raw.githubusercontent.com/{github_repository}/main/{DATA_DIR}/{file_name}"
         raw_urls.append(raw_url)
 
-    # Текущее время
     update_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # Отправка ОДНОГО сообщения
-    print("Отправка сообщения в Telegram...")
-    send_telegram_message_with_photo(telegram_token, telegram_to_id, raw_urls, update_time, github_repository)
+    # Формируем ссылку на картинку в репозитории
+    photo_url = f"https://raw.githubusercontent.com/{github_repository}/main/{PHOTO_FILENAME}"
+    print(f"Ссылка на картинку: {photo_url}")
+
+    # 1. Отправляем картинку
+    print("Отправка картинки...")
+    photo_sent = send_photo_only(telegram_token, telegram_to_id, photo_url)
+    
+    if not photo_sent:
+        print("Не удалось отправить картинку, но продолжаем...")
+
+    # 2. Отправляем сообщение с кнопками
+    print("Отправка сообщения с кнопками...")
+    message_sent = send_message_with_buttons(telegram_token, telegram_to_id, raw_urls, update_time)
+    
+    if not message_sent:
+        sys.exit(1)
+    
+    print("Готово!")
 
 
 if __name__ == "__main__":
