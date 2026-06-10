@@ -2,12 +2,12 @@ name: Auto Update Configs
 
 on:
   schedule:
-    # Запуск раз в 12 часов (в 00:00 и 12:00 по UTC)
-    - cron: '0 */12 * * *'
-  workflow_dispatch: # Позволяет запускать вручную из вкладки Actions на GitHub
+    # Запуск в 2:00 и 14:00 UTC (соответствует 6:00 и 18:00 по Самаре)
+    - cron: '0 2,14 * * *'
+  workflow_dispatch:
 
 permissions:
-  contents: write # Дает право сценарию пушить изменения обратно в ваш репозиторий
+  contents: write
 
 jobs:
   update-and-post:
@@ -31,7 +31,6 @@ jobs:
 
       - name: Run updater and notify Telegram
         env:
-          # Секреты безопасно забираются из зашифрованной базы GitHub
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_TO_ID: ${{ secrets.TELEGRAM_TO_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
