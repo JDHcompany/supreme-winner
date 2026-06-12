@@ -1,51 +1,49 @@
-name: Auto Update Configs
+name: Update Configs
 
 on:
   schedule:
-    # Запуск в 2:00 и 14:00 UTC (соответствует 6:00 и 18:00 по Самаре)
-    - cron: '0 2,14 * * *'
-  workflow_dispatch:
+    # Запуск каждые 6 часов (в 00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:   # Ручной запуск из вкладки Actions
 
 permissions:
   contents: write
 
 jobs:
-  update-and-post:
+  run-script:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+    - name: Install dependencies
+      run: |
+        pip install requests
 
-      - name: Run updater and notify Telegram
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_TO_ID: ${{ secrets.TELEGRAM_TO_ID }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python update_configs.py
+    - name: Run script to process and send
+      env:
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_TO_ID: ${{ secrets.TELEGRAM_TO_ID }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: python update_configs.py
 
-      - name: Commit and Push new config files
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add data/
-          
-          if git diff-index --quiet HEAD; then
-            echo "Конфигурации не изменились."
-          else
-            git commit -m "Auto-update configs: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-            git push origin HEAD:${{ github.ref_name }}
-          fi
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Добавляем папку с конфигами, которые обновляются раз в 6 часов под временными именами
+        git add data/
+        
+        if git diff --cached --quiet; then
+          echo "Имена файлов и данные не изменились. Пропускаем коммит."
+        else
+          git commit -m "Автоматическая ротация названий и обновление конфигов"
+          git push
+        fi
