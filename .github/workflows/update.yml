@@ -1,4 +1,4 @@
-name: Update Configs
+name: Send Telegram Notification
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:   # Ручной запуск из вкладки Actions
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   run-script:
@@ -32,18 +32,3 @@ jobs:
         TELEGRAM_TO_ID: ${{ secrets.TELEGRAM_TO_ID }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: python update_configs.py
-
-    - name: Commit and push changes
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # Добавляем папку с конфигами, которые обновляются раз в 6 часов под временными именами
-        git add data/
-        
-        if git diff --cached --quiet; then
-          echo "Имена файлов и данные не изменились. Пропускаем коммит."
-        else
-          git commit -m "Автоматическая ротация названий и обновление конфигов"
-          git push
-        fi
