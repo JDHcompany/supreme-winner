@@ -4,7 +4,6 @@
 import os
 import sys
 import re
-import urllib.parse
 import requests
 from datetime import datetime
 
@@ -57,40 +56,46 @@ def send_photo_only(token, chat_id, photo_url):
         return False
 
 
-def send_message_with_buttons(token, chat_id, raw_urls, update_time):
-    """Отправляет текстовое сообщение с ровно 2 кнопками, которые копируют ссылку в буфер обмена."""
-    
+def send_message_with_copyable_links(token, chat_id, raw_urls, update_time):
+    """
+    Отправляет текстовое сообщение, где ссылки оформлены через HTML-тег <code>.
+    При нажатии на такую ссылку в Telegram она автоматически копируется в буфер обмена.
+    """
+    url1 = raw_urls[0] if len(raw_urls) > 0 else ""
+    url2 = raw_urls[1] if len(raw_urls) > 1 else ""
+
+    # Формируем текст сообщения с использованием HTML-разметки.
+    # Тег <code> делает текст моноширинным и кликабельным для быстрого копирования.
     message_text = (
-        f"🆕 Обновление конфигураций\n"
+        f"🆕 <b>Обновление конфигураций</b>\n"
         f"🕒 Время обновления: {update_time}\n\n"
-        f"🗃️ Больше новых конфигов в моем боте 🎁 - @freevpnconf_bot\n\n"
-        f"⏳ Ссылки работают 12 часов, а потом обновляются 🔄\n\n"
-        f"👇 Нажми на кнопку, чтобы скопировать конфиг:"
+        f"🎁 Больше конфигов в боте — @freevpnconf_bot\n\n"
+        f"👇 <b>НАЖМИ НА ССЫЛКУ НИЖЕ, ЧТОБЫ СКОПИРОВАТЬ:</b>\n\n"
+        f"🍟 <b>Конфиг #1 (Нажмите для копирования):</b>\n"
+        f"<code>{url1}</code>\n\n"
+        f"⚡ <b>Конфиг #2 (Нажмите для копирования):</b>\n"
+        f"<code>{url2}</code>\n\n"
+        f"🔄 Ссылки работают 12 часов, а затем обновляются!"
     )
 
-    inline_keyboard = []
-    # Формируем кнопки с использованием протокола автокопирования tg://copy?text=
-    for idx, file_url in enumerate(raw_urls, 1):
-        # Обязательно кодируем целевой URL, чтобы он корректно передался внутри ссылки tg://
-        encoded_url = urllib.parse.quote(file_url, safe='')
-        copy_action_url = f"tg://copy?text={encoded_url}"
-        
-        inline_keyboard.append([{
-            "text": f"📋 Скопировать Конфиг #{idx}",
-            "url": copy_action_url
-        }])
+    # Кнопки под сообщением ведут на красивую веб-страницу (как запасной вариант)
+    inline_keyboard = [
+        [{"text": "🌐 Открыть веб-страницу #1", "url": url1}],
+        [{"text": "🌐 Открыть веб-страницу #2", "url": url2}]
+    ]
 
     api_url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": message_text,
+        "parse_mode": "HTML",  # Указываем HTML-парсинг для работы тегов <code> и <b>
         "reply_markup": {"inline_keyboard": inline_keyboard}
     }
 
     try:
         response = requests.post(api_url, json=payload, timeout=20)
         response.raise_for_status()
-        print("Сообщение с кнопками копирования успешно отправлено!")
+        print("Сообщение успешно отправлено в Telegram!")
         return True
     except Exception as e:
         print(f"Ошибка при отправке сообщения: {e}")
@@ -119,7 +124,7 @@ def main():
         print("Критическая ошибка: Не удалось получить 2 ссылки на лучшие файлы.")
         sys.exit(1)
 
-    print(f"Успешно получены ссылки для кнопок копирования:")
+    print(f"Успешно получены ссылки:")
     for idx, url in enumerate(best_urls, 1):
         print(f"Ссылка #{idx}: {url}")
 
@@ -136,9 +141,9 @@ def main():
     if not photo_sent:
         print("Не удалось отправить картинку, но продолжаем отправку текста...")
 
-    # 2. Отправляем сообщение с кнопками копирования
-    print("Отправка сообщения с кнопками...")
-    message_sent = send_message_with_buttons(telegram_token, telegram_to_id, best_urls, update_time)
+    # 2. Отправляем сообщение с копируемыми ссылками и кнопками перехода
+    print("Отправка сообщения...")
+    message_sent = send_message_with_copyable_links(telegram_token, telegram_to_id, best_urls, update_time)
     
     if not message_sent:
         print("Ошибка: Не удалось отправить сообщение в Telegram.")
