@@ -1,41 +1,63 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import sys
-import base64
+import re
 import random
 import string
 import requests
 from datetime import datetime
 
-# Исходные ссылки на конфигурации, закодированные в Base64
-ENCODED_URLS = [
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF8xLnR4dA==",
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF8yLnR4dA==",
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF8zLnR4dA==",
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF80LnR4dA==",
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF81LnR4dA==",
-    "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0pESGNvbXBhbnkvY3Jpc3B5LWJyb2Njb2xpL3JlZnMvaGVhZHMvbWFpbi9yZXN1bHRzL3RvcF9zcGxpdC90b3BfcGFydF82LnR4dA=="
-]
+# ==================== НАСТРОЙКИ СВЯЗИ ====================
+# Укажите прямую RAW-ссылку на файл best_files_links.txt из вашего ПЕРВОГО репозитория:
+LINKS_MANIFEST_URL = "https://raw.githubusercontent.com/JDHcompany/ImprovedV/main/best_files_links.txt"
+# ==========================================================
 
 DATA_DIR = "data"
-
-# НАЗВАНИЕ ВАШЕЙ КАРТИНКИ (положите её в корень репозитория)
 PHOTO_FILENAME = "image.jpg"
 
 
-def decode_url(encoded_str):
-    """Декодирует URL-адрес из Base64."""
+def get_best_urls_from_manifest(url):
+    """Скачивает манифест-файл со ссылками и извлекает из него 2 прямые RAW ссылки."""
     try:
-        decoded_bytes = base64.b64decode(encoded_str.encode('utf-8'))
-        return decoded_bytes.decode('utf-8')
+        response = requests.get(url, timeout=20)
+        response.raise_for_status()
+        content = response.text
+        
+        # Находим все строки, начинающиеся с http
+        urls = re.findall(r'https?://[^\s]+', content)
+        # Очищаем от возможных комментариев или лишних символов
+        clean_urls = [u.strip() for u in urls if "best_" in u]
+        
+        if len(clean_urls) < 2:
+            print(f"Предупреждение: Найдено меньше 2 ссылок в файле ({len(clean_urls)} шт). Пробуем забрать любые доступные.")
+            clean_urls = [u.strip() for u in urls if u.strip()]
+            
+        return clean_urls[:2] # Возвращаем ровно 2 ссылки
     except Exception as e:
-        print(f"Ошибка декодирования URL: {e}")
-        sys.exit(1)
+        print(f"Ошибка при получении манифеста ссылок: {e}")
+        return []
 
 
-def generate_random_filename():
-    """Генерирует случайное имя файла."""
-    random_str = ''.join(random.choices(
-        string.ascii_lowercase + string.digits, k=12))
+def generate_seeded_filename():
+    """
+    Генерирует случайное имя файла, которое меняется ровно раз в 3 дня.
+    Использует текущую эпоху дней деленную на 3 в качестве seed для random.
+    """
+    # Вычисляем количество дней, прошедших с начала эпохи
+    current_days_epoch = int(time.time() / 86400)
+    # Группируем дни по 3. Каждые 3 дня значение этой переменной будет меняться
+    three_day_period = current_days_epoch // 3
+    
+    # Инициализируем генератор случайных чисел уникальным ключом этого трехдневного периода
+    random.seed(three_day_period)
+    
+    random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+    
+    # Сбрасываем seed обратно на системный генератор, чтобы другие вызовы были действительно случайными
+    random.seed(None)
+    
     return f"config_{random_str}.txt"
 
 
@@ -60,7 +82,7 @@ def download_content(url):
         response.raise_for_status()
         return response.text
     except Exception as e:
-        print(f"Ошибка при скачивании: {e}")
+        print(f"Ошибка при скачивании конфигов: {e}")
         return None
 
 
@@ -83,9 +105,8 @@ def send_photo_only(token, chat_id, photo_url):
 
 
 def send_message_with_buttons(token, chat_id, raw_urls, update_time):
-    """Отправляет текстовое сообщение с кнопками (БЕЗ Markdown)."""
+    """Отправляет текстовое сообщение с ровно 2 кнопками (Текст сообщения не изменен)."""
     
-    # Исправленный текст (были /n вместо \n)
     message_text = (
         f"🆕 Обновление конфигураций\n"
         f"🕒 Время обновления: {update_time}\n\n"
@@ -95,6 +116,7 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
     )
 
     inline_keyboard = []
+    # Выводим ровно 2 кнопки
     for idx, file_url in enumerate(raw_urls, 1):
         inline_keyboard.append([{
             "text": f"📋 Скопировать Конфиг #{idx}",
@@ -120,6 +142,8 @@ def send_message_with_buttons(token, chat_id, raw_urls, update_time):
         return False
 
 
+import time # Импортируем модуль времени для расчета эпохи дней
+
 def main():
     telegram_token = os.environ.get("TELEGRAM_TOKEN")
     telegram_to_id = os.environ.get("TELEGRAM_TO_ID")
@@ -133,18 +157,35 @@ def main():
         print("Ошибка: GITHUB_REPOSITORY пуста.")
         sys.exit(1)
 
+    print("Скачивание ссылок из первого проекта...")
+    best_urls = get_best_urls_from_manifest(LINKS_MANIFEST_URL)
+    
+    if not best_urls:
+        print("Критическая ошибка: Не удалось получить ссылки на лучшие файлы.")
+        sys.exit(1)
+
+    print(f"Успешно извлечено {len(best_urls)} ссылок.")
+
     print("Очистка старых файлов...")
     clean_old_files()
 
     new_filenames = []
     
     print("Скачивание актуальных конфигураций...")
-    for idx, encoded_url in enumerate(ENCODED_URLS, 1):
-        direct_url = decode_url(encoded_url)
+    # Генерируем уникальное имя на основе ротируемого 3-дневного сида
+    # Для первой ссылки генерируем одно имя, а добавив индекс к сиду, сгенерируем второе
+    for idx, direct_url in enumerate(best_urls, 1):
         content = download_content(direct_url)
 
         if content:
-            new_name = generate_random_filename()
+            # Чтобы имена двух файлов не конфликтовали, но менялись раз в 3 дня:
+            current_days_epoch = int(time.time() / 86400)
+            three_day_period = (current_days_epoch // 3) + idx # добавляем сдвиг для второго файла
+            random.seed(three_day_period)
+            random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+            random.seed(None)
+            
+            new_name = f"config_{random_str}.txt"
             file_path = os.path.join(DATA_DIR, new_name)
 
             with open(file_path, "w", encoding="utf-8") as f:
@@ -155,8 +196,8 @@ def main():
         else:
             print(f"Не удалось обновить файл #{idx}, пропускаем.")
 
-    if not new_filenames:
-        print("Критическая ошибка: Ни один файл не был обновлен.")
+    if len(new_filenames) < 2:
+        print("Критическая ошибка: Не удалось обновить оба файла подписок.")
         sys.exit(1)
 
     # Генерация ссылок на конфиги
@@ -178,7 +219,7 @@ def main():
     if not photo_sent:
         print("Не удалось отправить картинку, но продолжаем...")
 
-    # 2. Отправляем сообщение с кнопками
+    # 2. Отправляем сообщение с кнопками (ровно 2 кнопки)
     print("Отправка сообщения с кнопками...")
     message_sent = send_message_with_buttons(telegram_token, telegram_to_id, raw_urls, update_time)
     
