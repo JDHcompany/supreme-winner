@@ -79,8 +79,8 @@ def send_message_with_copyable_links(token, chat_id, raw_urls, update_time):
 
     # Кнопки под сообщением ведут на красивую веб-страницу (как запасной вариант)
     inline_keyboard = [
-        [{"text": "🌐 Открыть веб-страницу #1", "url": url1}],
-        [{"text": "🌐 Открыть веб-страницу #2", "url": url2}]
+        [{"text": "🌐 Открыть веб-страницу #1", "url": "https://go.linkify.ru/2IfW"}],
+        [{"text": "🌐 Открыть веб-страницу #2", "url": "https://go.linkify.ru/2IfX"}]
     ]
 
     api_url = f"https://api.telegram.org/bot{token}/sendMessage"
