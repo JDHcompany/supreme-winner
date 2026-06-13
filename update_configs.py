@@ -72,9 +72,9 @@ def send_message_with_copyable_links(token, chat_id, raw_urls, update_time):
         f"🎁 Больше конфигов в боте — @freevpnconf_bot\n\n"
         f"👇 <b>НАЖМИ НА ССЫЛКУ НИЖЕ, ЧТОБЫ СКОПИРОВАТЬ:</b>\n\n"
         f"🍟 <b>Конфиг #1 (Нажмите для копирования):</b>\n"
-        f"<code>{url1}</code>\n\n"
+        f"<code>https://go.linkify.ru/2IfW</code>\n\n"
         f"⚡ <b>Конфиг #2 (Нажмите для копирования):</b>\n"
-        f"<code>{url2}</code>" 
+        f"<code>https://go.linkify.ru/2IfX</code>" 
     )
 
     # Кнопки под сообщением ведут на красивую веб-страницу (как запасной вариант)
